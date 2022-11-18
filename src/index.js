@@ -89,26 +89,27 @@ app.post('/sign-in', async (req, res) => {
 });
 
 async function validToken(req, res) {
-    const headersSchema = joi.object({
-        authorization: joi.string().pattern(new RegExp('^Bearer ')).required()
-    });
-
-    const {headers} = req;
-
-    const validation = headersSchema.validate(headers, {abortEarly: true});
-
-    if ('error' in validation) {
+    if ('authorization' in req.headers === false) {
         res.sendStatus(400);
-        return false;
+        return null;
     }
 
-    const token = headers.authorization.replace('Bearer ', '');
+    const regex = new RegExp('^Bearer ');
+
+    const {authorization} = req.headers;
+
+    if (regex.test(authorization) === false) {
+        res.sendStatus(400);
+        return null;
+    }
+
+    const token = authorization.replace('Bearer ', '');
 
     const session = await sessions.findOne({token});
 
     if (session === null) {
-        res.sendStatus(422);
-        return false;
+        res.sendStatus(401);
+        return null;
     }
 
     return session.userID;
@@ -117,19 +118,22 @@ async function validToken(req, res) {
 app.post('/wallet', async (req, res) => {
     const bodySchema = joi.object({
         value: joi.number().required(),
-        description: joi.string().required()
+        description: joi.string().required(),
+        type: joi.string().valid('in', 'out').required()
     });
 
-    const validation = bodySchema.validate(req.body, {abortEarly: true});
+    const {body} = req;
+
+    const validation = bodySchema.validate(body, {abortEarly: true});
 
     if ('error' in validation) {
         res.sendStatus(422);
         return;
     }
 
-    const userID = validToken(req, res);
+    const userID = await validToken(req, res);
 
-    if (userID === false) {
+    if (userID === null) {
         return;
     }
 
@@ -146,9 +150,9 @@ app.post('/wallet', async (req, res) => {
 });
 
 app.get('/wallet', async (req, res) => {
-    const userID = validToken(req, res);
+    const userID = await validToken(req, res);
 
-    if (userID === false) {
+    if (userID === null) {
         return;
     }
 
@@ -160,7 +164,7 @@ app.get('/wallet', async (req, res) => {
 });
 
 app.delete('/exit', async (req, res) => {
-    const userID = validToken(req, res);
+    const userID = await validToken(req, res);
 
     if (userID === false) {
         return;
