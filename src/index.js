@@ -81,6 +81,13 @@ app.post('/sign-in', async (req, res) => {
         return;
     }
 
+    const session = await sessions.findOne({userID: user._id});
+
+    if (session !== null) {
+        res.send({token: session.token});
+        return;
+    }
+
     const token = uuid();
 
     await sessions.insertOne({userID: user._id, token});
