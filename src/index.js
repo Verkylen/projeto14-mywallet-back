@@ -76,23 +76,25 @@ app.post('/sign-in', async (req, res) => {
         return;
     }
 
+    const {_id, name} = user;
+
     if(!bcrypt.compareSync(password, user.password)) {
         res.sendStatus(403);
         return;
     }
 
-    const session = await sessions.findOne({userID: user._id});
+    const session = await sessions.findOne({userID: _id});
 
     if (session !== null) {
-        res.send({token: session.token});
+        res.send({name, token: session.token});
         return;
     }
 
     const token = uuid();
 
-    await sessions.insertOne({userID: user._id, token});
+    await sessions.insertOne({userID: _id, token});
 
-    res.send({token});
+    res.send({name: name, token});
 });
 
 async function validToken(req, res) {
